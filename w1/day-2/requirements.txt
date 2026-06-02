@@ -1,6 +1,0 @@
-drain3
-pandas
-scikit-learn
-matplotlib
-jupyterlab
-sentence-transformers
