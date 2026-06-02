@@ -123,14 +123,35 @@ Anomaly = các giá trị ngoài [giới hạn dưới, giới hạn trên]
 ## Biểu Đồ Hình Ảnh
 
 ### Biểu Đồ So Sánh 2 Detector
+![Comparison of 2 Detectors](assets/comparison_dectectors.png)
+
+**Giải Thích Biểu Đồ:**
 - **Trên:** Phát hiện bằng IQR (dấu chấm đỏ)
-- **Dưới:** Phát hiện bằng Isolation Forest (dấu chấm tím)
-- **Vùng Cam/Xanh:** Các cửa sổ anomaly theo sự thật
+  - 563 anomaly phát hiện
+  - Độ chính xác: 0.0568 | Độ nhạy: 0.0604 | F1: 0.0586
+  
+- **Dưới:** Phát hiện bằng Isolation Forest (dấu chấm tím, contamination=0.2)
+  - 1.015 anomaly phát hiện
+  - Độ chính xác: 0.0483 | Độ nhạy: 0.0925 | F1: 0.0634
+  
+- **Vùng Cam/Xanh:** Các cửa sổ anomaly theo sự thật (ground truth)
 - **Đường Xanh:** Dữ liệu chuỗi thời gian thô
 
-**Quan Sát Chính:** Isolation Forest phát hiện nhiều điểm hơn, bao phủ tốt hơn các vùng ground truth.
+**Quan Sát Chính:** 
+- Isolation Forest phát hiện nhiều điểm hơn, bao phủ tốt hơn các vùng ground truth
+- Độ nhạy cao hơn (9.25% vs 6.04%) → bắt được anomaly tốt hơn
+- Phù hợp với AIOps (tốt hơn là có cảnh báo giả so với bỏ qua sự cố)
 
 ### Phân Tích Điều Chỉnh Contamination
+![Contamination Tuning Analysis](assets/contamination_tuning_analysis.png)
+
+**Giải Thích Biểu Đồ:**
+- **Precision vs Contamination:** Giảm từ 0.0784 → 0.0342 (trade-off)
+- **Recall vs Contamination:** Tăng từ 0.0075 → 0.1472
+- **F1-Score vs Contamination:** Đạt đỉnh ở contamination=0.2 (F1=0.0634)
+- **All Metrics Comparison:** Menunjukkan titik keseimbangan optimal di contamination=0.2
+
+**Kết Luận:** 
 - F1-Score đạt đỉnh ở contamination=0.2
 - Sự đánh đổi giữa Độ chính xác (giảm) và Độ nhạy (tăng) khi contamination tăng
 - contamination=0.2 cung cấp sự cân bằng tốt nhất
@@ -170,7 +191,80 @@ Anomaly = các giá trị ngoài [giới hạn dưới, giới hạn trên]
 
 ---
 
+## LOG: Điều Chỉnh Contamination Parameter (3 Lần Tune)
+
+Quá trình tuning Isolation Forest với các giá trị contamination khác nhau:
+
+### Lần Tune 1: contamination=0.1
+```
+Contamination=0.1: 
+  Precision=0.0453, Recall=0.0434, F1-Score=0.0443, Detected=508
+```
+- Phát hiện: 508 anomaly
+- Độ chính xác: 4.53% | Độ nhạy: 4.34% | F1: 0.0443
+
+### Lần Tune 2: contamination=0.15
+```
+Contamination=0.15: 
+  Precision=0.0473, Recall=0.0679, F1-Score=0.0558, Detected=761
+```
+- Phát hiện: 761 anomaly
+- Độ chính xác: 4.73% | Độ nhạy: 6.79% | F1: 0.0558
+
+### Lần Tune 3: contamination=0.2 (BEST ✅)
+```
+Contamination=0.2: 
+  Precision=0.0483, Recall=0.0925, F1-Score=0.0634, Detected=1015
+```
+- Phát hiện: 1.015 anomaly
+- Độ chính xác: 4.83% | Độ nhạy: 9.25% | F1: **0.0634** (TỐT NHẤT)
+
+---
+
+## Model Artifacts
+
+### Isolation Forest Model (Đã Huấn Luyện)
+**File:** `models/isolation_forest_cont0.2.pkl`
+
+**Thông Tin Model:**
+- **Kiểu:** Isolation Forest (scikit-learn)
+- **Contamination:** 0.2
+- **Số Đặc Trưng:** 11
+- **Mẫu Huấn Luyện:** 5.256
+- **Thời Gian Huấn Luyện:** ~350ms
+- **Kích Thước File:** < 1 MB
+
+**Cách Sử Dụng:**
+```python
+import joblib
+
+# Load model
+model = joblib.load('models/isolation_forest_cont0.2.pkl')
+
+# Dự đoán trên dữ liệu mới (phải có 11 đặc trưng giống nhau)
+predictions = model.predict(new_data)  # -1: anomaly, 1: normal
+anomaly_labels = (predictions == -1).astype(int)
+```
+
+**Đặc Trưng Input (11 Chiều):**
+1. value - Giá trị thô
+2. rolling_mean_1h - Trung bình lăn 1 giờ
+3. rolling_std_1h - Độ lệch chuẩn lăn 1 giờ
+4. rolling_mean_4h - Trung bình lăn 4 giờ
+5. rate_of_change - Đạo hàm (1-bước)
+6. rate_of_change_5m - Đạo hàm (5-bước)
+7. lag_1 - Giá trị trước đó (t-1)
+8. lag_60 - Giá trị 1 giờ trước (t-60)
+9. hour - Giờ trong ngày
+10. is_weekend - Cờ cuối tuần
+11. z_score - Độ lệch chuẩn hóa
+
+---
+
 ## Các Tệp Bao Gồm
 - `assignment.ipynb` - Sổ tay phân tích hoàn chỉnh với tất cả các phần
 - `SUBMIT.md` - Tài liệu gửi này
-- Mô hình đã huấn luyện có thể được xuất từ sổ tay
+- `models/isolation_forest_cont0.2.pkl` - Mô hình Isolation Forest đã huấn luyện
+- `assets/` - Thư mục chứa các biểu đồ:
+  - `comparison_dectectors.png` - So sánh IQR vs Isolation Forest
+  - `contamination_tuning_analysis.png` - Phân tích tuning contamination
