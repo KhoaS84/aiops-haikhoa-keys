@@ -1,7 +1,8 @@
 # Nộp bài
 
 ## Ảnh chụp
-- Biểu đồ time series + điểm bất thường: [](assets/phase2_template_count.png)
+- Biểu đồ time series + điểm bất thường: 
+![](assets/phase2_template_count.png)
 
 ## Kết quả
 - HDFS (200k dòng): 25 templates; top-10 ở results/top_templates.csv
@@ -17,4 +18,7 @@
 - Metric cho biết mức độ; log cho biết nguyên nhân; kết hợp giúp khoanh vùng root cause nhanh hơn.
 
 ## Viết tay
-- Ảnh/scan: [](assets/cau1-2.jpg), [](assets/cau3-4.jpg), [](assets/cau5.jpg)
+- Ảnh/scan: 
+![](assets/cau1-2.jpg)
+![](assets/cau3-4.jpg)
+![](assets/cau5.jpg)
