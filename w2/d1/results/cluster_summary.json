@@ -1,0 +1,15 @@
+{
+  "input_alerts": 20,
+  "output_clusters": 3,
+  "reduction_ratio": 0.85,
+  "clusters": [
+    {
+      "cluster_id": "c-001-000",
+      "alert_count": 14,
+      "services": ["payment-svc", "checkout-svc", "edge-lb"],
+      "time_range": ["2026-06-12T09:42:01Z", "2026-06-12T09:48:30Z"],
+      "max_severity": "crit",
+      "fingerprints": ["payment-svc|latency_p99_ms|crit"]
+    }
+  ]
+}
