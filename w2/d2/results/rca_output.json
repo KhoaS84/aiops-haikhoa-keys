@@ -23,7 +23,7 @@
       "actions": [
         "Rollback to v3.1. Scale pool 50 → 100 cushion. Add pool monitor alert > 80%."
       ],
-      "reasoning": "payment-svc is ranked top-1 by combined graph PageRank and timestamp score. Graph score captures dependency impact; timestamp score boosts services that alerted earlier.",
+      "reasoning": "payment-svc is ranked highest by combined graph + temporal score. The score uses reverse PageRank on the service dependency subgraph and alert start time.",
       "similar_incidents": [
         "INC-2025-11-08",
         "INC-2026-03-20",
@@ -45,7 +45,7 @@
       "actions": [
         "Failover to backup provider. Multi-provider routing."
       ],
-      "reasoning": "notification-svc is ranked top-1 by combined graph PageRank and timestamp score. Graph score captures dependency impact; timestamp score boosts services that alerted earlier.",
+      "reasoning": "notification-svc is ranked highest by combined graph + temporal score. The score uses reverse PageRank on the service dependency subgraph and alert start time.",
       "similar_incidents": [
         "INC-2026-02-08",
         "INC-2026-05-18",
@@ -67,7 +67,7 @@
       "actions": [
         "Patch leak; rollback v3.0 trong khi chờ. Add gc.collect() trong handler."
       ],
-      "reasoning": "recommender-svc is ranked top-1 by combined graph PageRank and timestamp score. Graph score captures dependency impact; timestamp score boosts services that alerted earlier.",
+      "reasoning": "recommender-svc is ranked highest by combined graph + temporal score. The score uses reverse PageRank on the service dependency subgraph and alert start time.",
       "similar_incidents": [
         "INC-2025-08-02",
         "INC-2025-10-28",
