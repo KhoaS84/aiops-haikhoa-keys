@@ -1,0 +1,30 @@
+{
+  "alerts": [
+    {
+      "id": "a-1",
+      "ts": "2026-06-12T09:42:01Z",
+      "service": "payment-svc",
+      "metric": "latency_p99_ms",
+      "severity": "crit",
+      "value": 1840,
+      "threshold": 800,
+      "labels": {
+        "env": "prod",
+        "region": "ap-southeast-1"
+      }
+    },
+    {
+      "id": "a-2",
+      "ts": "2026-06-12T09:42:30Z",
+      "service": "payment-svc",
+      "metric": "db_connection_pool_used_ratio",
+      "severity": "warn",
+      "value": 0.91,
+      "threshold": 0.8,
+      "labels": {
+        "env": "prod",
+        "region": "ap-southeast-1"
+      }
+    }
+  ]
+}
