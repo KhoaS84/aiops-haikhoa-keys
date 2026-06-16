@@ -1,0 +1,127 @@
+{
+  "run_timestamp": "2026-06-16T08:00:00Z",
+  "total_experiments": 10,
+  "config_file": "experiments.yaml",
+  "results": [
+    {
+      "name": "payment_latency_500ms",
+      "detected": true,
+      "mttd": 28.3,
+      "rca_service": "payment-svc",
+      "rca_correct": true,
+      "false_alarms": 0,
+      "fault_type": "latency",
+      "expected_rca": "payment-svc",
+      "alert_count": 3,
+      "timestamp": "2026-06-16T08:07:28Z"
+    },
+    {
+      "name": "payment_packet_loss_30pct",
+      "detected": true,
+      "mttd": 35.7,
+      "rca_service": "payment-svc",
+      "rca_correct": true,
+      "false_alarms": 0,
+      "fault_type": "network_loss",
+      "expected_rca": "payment-svc",
+      "alert_count": 4,
+      "timestamp": "2026-06-16T08:11:35Z"
+    },
+    {
+      "name": "inventory_pod_kill_60s",
+      "detected": true,
+      "mttd": 12.1,
+      "rca_service": "inventory-svc",
+      "rca_correct": true,
+      "false_alarms": 0,
+      "fault_type": "availability",
+      "expected_rca": "inventory-svc",
+      "alert_count": 5,
+      "timestamp": "2026-06-16T08:16:12Z"
+    },
+    {
+      "name": "apigateway_cpu_stress_90pct",
+      "detected": true,
+      "mttd": 41.5,
+      "rca_service": "payment-svc",
+      "rca_correct": false,
+      "false_alarms": 0,
+      "fault_type": "cpu_saturation",
+      "expected_rca": "api-gateway",
+      "alert_count": 7,
+      "timestamp": "2026-06-16T08:20:41Z"
+    },
+    {
+      "name": "paymentdb_memory_fill_95pct",
+      "detected": true,
+      "mttd": 38.9,
+      "rca_service": "payment-db",
+      "rca_correct": true,
+      "false_alarms": 0,
+      "fault_type": "memory",
+      "expected_rca": "payment-db",
+      "alert_count": 3,
+      "timestamp": "2026-06-16T08:25:38Z"
+    },
+    {
+      "name": "authsvc_clock_skew_60s",
+      "detected": true,
+      "mttd": 22.4,
+      "rca_service": "auth-svc",
+      "rca_correct": true,
+      "false_alarms": 0,
+      "fault_type": "time_skew",
+      "expected_rca": "auth-svc",
+      "alert_count": 2,
+      "timestamp": "2026-06-16T08:30:22Z"
+    },
+    {
+      "name": "logcollector_disk_fill_95pct",
+      "detected": false,
+      "mttd": null,
+      "rca_service": null,
+      "rca_correct": null,
+      "false_alarms": 0,
+      "fault_type": "disk_fill",
+      "expected_rca": "log-collector",
+      "alert_count": 0,
+      "timestamp": "2026-06-16T08:36:00Z"
+    },
+    {
+      "name": "frontend_apigateway_partition_30s",
+      "detected": true,
+      "mttd": 8.2,
+      "rca_service": "api-gateway",
+      "rca_correct": true,
+      "false_alarms": 0,
+      "fault_type": "network_partition",
+      "expected_rca": "api-gateway",
+      "alert_count": 8,
+      "timestamp": "2026-06-16T08:40:08Z"
+    },
+    {
+      "name": "dns_slow_lookup_2s",
+      "detected": true,
+      "mttd": 52.6,
+      "rca_service": "payment-svc",
+      "rca_correct": false,
+      "false_alarms": 0,
+      "fault_type": "dns_latency",
+      "expected_rca": "dns-resolver",
+      "alert_count": 6,
+      "timestamp": "2026-06-16T08:44:52Z"
+    },
+    {
+      "name": "checkout_http500_retry_storm",
+      "detected": true,
+      "mttd": 18.7,
+      "rca_service": "payment-svc",
+      "rca_correct": false,
+      "false_alarms": 0,
+      "fault_type": "cascade_retry",
+      "expected_rca": "checkout-svc",
+      "alert_count": 12,
+      "timestamp": "2026-06-16T08:49:18Z"
+    }
+  ]
+}

@@ -1,0 +1,331 @@
+# experiments.yaml — W3-D2 Chaos Engineering Lab
+# 10 experiment specs, mỗi entry có 5 field bắt buộc:
+#   hypothesis, blast_radius, rollback, measurement, ground_truth
+
+experiments:
+
+  # ─────────────────────────────────────────────────────────────
+  # Experiment 1: payment-svc latency injection (provided reference)
+  # ─────────────────────────────────────────────────────────────
+  - name: "payment_latency_500ms"
+    hypothesis: |
+      Steady-state: payment_latency_p99 ≤ 120ms, checkout_success_rate ≥ 99.5%.
+      Khi payment-svc bị inject latency +500ms ± 100ms trong 60s,
+      pipeline phải detect latency anomaly trong ≤ 60s.
+      RCA phải pick payment-svc là root cause.
+      checkout_success_rate có thể giảm nhưng không dưới 90% nhờ timeout config.
+    blast_radius:
+      target: "payment-svc container"
+      traffic: "synthetic"
+      duration: 60
+    rollback:
+      automatic: true
+      trigger_when: "checkout_success_rate < 85% for 15s"
+      method: "pumba stop; tc qdisc del dev eth0 root"
+    measurement:
+      metrics:
+        - payment_latency_p99
+        - payment_latency_mean
+        - checkout_success_rate
+        - checkout_latency_p99
+      capture_window: "t-5min to t+10min"
+    ground_truth:
+      fault_service: "payment-svc"
+      fault_type: "latency"
+      expected_detection: true
+      expected_rca_service: "payment-svc"
+
+  # ─────────────────────────────────────────────────────────────
+  # Experiment 2: payment-svc packet loss 30%
+  # ─────────────────────────────────────────────────────────────
+  - name: "payment_packet_loss_30pct"
+    hypothesis: |
+      Steady-state: payment_error_rate ≤ 0.5%, checkout_success_rate ≥ 99.5%.
+      Khi payment-svc bị packet loss 30%, error_rate sẽ spike do
+      TCP retransmission timeout. Retry logic ở checkout-svc sẽ
+      giữ checkout_success_rate ≥ 90%.
+      Pipeline phải detect error_rate anomaly trong ≤ 60s.
+      RCA phải pick payment-svc (source of packet loss).
+    blast_radius:
+      target: "payment-svc container"
+      traffic: "synthetic"
+      duration: 60
+    rollback:
+      automatic: true
+      trigger_when: "checkout_success_rate < 80% for 15s"
+      method: "pumba stop; tc qdisc del dev eth0 root"
+    measurement:
+      metrics:
+        - payment_error_rate
+        - payment_retry_count
+        - checkout_success_rate
+        - payment_latency_p99
+      capture_window: "t-5min to t+10min"
+    ground_truth:
+      fault_service: "payment-svc"
+      fault_type: "network_loss"
+      expected_detection: true
+      expected_rca_service: "payment-svc"
+
+  # ─────────────────────────────────────────────────────────────
+  # Experiment 3: inventory-svc pod kill every 60s
+  # ─────────────────────────────────────────────────────────────
+  - name: "inventory_pod_kill_60s"
+    hypothesis: |
+      Steady-state: inventory_availability ≥ 99.9%, inventory_error_rate ≤ 0.1%.
+      Khi inventory-svc bị kill (SIGKILL) mỗi 60s, container sẽ restart
+      nhưng có downtime window ~5-15s mỗi cycle.
+      Pipeline phải detect availability drop trong ≤ 30s.
+      RCA phải pick inventory-svc.
+      Downstream checkout-svc sẽ thấy intermittent failure.
+    blast_radius:
+      target: "inventory-svc container"
+      traffic: "synthetic"
+      duration: 120
+    rollback:
+      automatic: true
+      trigger_when: "inventory_availability = 0% for 30s continuously"
+      method: "pumba stop; docker restart inventory-svc"
+    measurement:
+      metrics:
+        - inventory_availability
+        - inventory_error_rate
+        - checkout_success_rate
+        - api_gateway_error_rate
+      capture_window: "t-5min to t+10min"
+    ground_truth:
+      fault_service: "inventory-svc"
+      fault_type: "availability"
+      expected_detection: true
+      expected_rca_service: "inventory-svc"
+
+  # ─────────────────────────────────────────────────────────────
+  # Experiment 4: api-gateway CPU stress 90%
+  # ─────────────────────────────────────────────────────────────
+  - name: "apigateway_cpu_stress_90pct"
+    hypothesis: |
+      Steady-state: api_gateway_latency_p99 ≤ 200ms, all downstream p99 ≤ 500ms.
+      Khi api-gateway CPU bị stress 90% trong 60s, request processing
+      sẽ chậm → latency cascade tới TẤT CẢ downstream services
+      (payment, inventory, checkout, notification).
+      Pipeline phải detect latency anomaly trên ≥ 3 service trong ≤ 45s.
+      RCA phải pick api-gateway (upstream chokepoint, không phải downstream).
+    blast_radius:
+      target: "api-gateway container"
+      traffic: "synthetic"
+      duration: 60
+    rollback:
+      automatic: true
+      trigger_when: "api_gateway_latency_p99 > 5000ms for 15s"
+      method: "docker exec api-gateway pkill stress-ng"
+    measurement:
+      metrics:
+        - apigateway_latency_p99
+        - payment_latency_p99
+        - inventory_latency_p99
+        - checkout_latency_p99
+        - apigateway_cpu_usage
+      capture_window: "t-5min to t+10min"
+    ground_truth:
+      fault_service: "api-gateway"
+      fault_type: "cpu_saturation"
+      expected_detection: true
+      expected_rca_service: "api-gateway"
+
+  # ─────────────────────────────────────────────────────────────
+  # Experiment 5: payment-db memory fill 95%
+  # ─────────────────────────────────────────────────────────────
+  - name: "paymentdb_memory_fill_95pct"
+    hypothesis: |
+      Steady-state: payment_db_connection_pool ≤ 60%, payment_error_rate ≤ 0.5%.
+      Khi payment-db memory fill 95%, database sẽ bị OOM pressure
+      → connection pool exhaustion hoặc slow query.
+      Pipeline phải detect connection error hoặc latency spike trong ≤ 45s.
+      RCA phải pick payment-db (database layer, không phải payment-svc).
+    blast_radius:
+      target: "payment-db container"
+      traffic: "synthetic"
+      duration: 60
+    rollback:
+      automatic: true
+      trigger_when: "payment-db health check fail for 15s"
+      method: "docker exec payment-db pkill stress-ng; docker restart payment-db"
+    measurement:
+      metrics:
+        - paymentdb_connection_pool_usage
+        - paymentdb_query_latency_p99
+        - payment_error_rate
+        - payment_latency_p99
+      capture_window: "t-5min to t+10min"
+    ground_truth:
+      fault_service: "payment-db"
+      fault_type: "memory"
+      expected_detection: true
+      expected_rca_service: "payment-db"
+
+  # ─────────────────────────────────────────────────────────────
+  # Experiment 6: auth-svc clock skew +60s
+  # ─────────────────────────────────────────────────────────────
+  - name: "authsvc_clock_skew_60s"
+    hypothesis: |
+      Steady-state: auth_success_rate ≥ 99.9%, api_401_rate ≤ 0.1%.
+      Khi auth-svc clock skew +60s, JWT token validation sẽ fail vì
+      token "appears expired" (iat + exp so với clock lệch).
+      auth_error_rate sẽ spike → tất cả request cần auth sẽ bị 401.
+      Pipeline phải detect auth error spike trong ≤ 30s.
+      RCA phải pick auth-svc (root cause là clock, không phải caller).
+    blast_radius:
+      target: "auth-svc container"
+      traffic: "synthetic"
+      duration: 60
+    rollback:
+      automatic: true
+      trigger_when: "auth_error_rate > 50% for 15s"
+      method: "docker exec auth-svc unset LD_PRELOAD; docker restart auth-svc"
+    measurement:
+      metrics:
+        - auth_error_rate
+        - auth_success_rate
+        - api_401_rate
+        - auth_latency_p99
+      capture_window: "t-5min to t+10min"
+    ground_truth:
+      fault_service: "auth-svc"
+      fault_type: "time_skew"
+      expected_detection: true
+      expected_rca_service: "auth-svc"
+
+  # ─────────────────────────────────────────────────────────────
+  # Experiment 7: log-collector disk fill 95%
+  # ─────────────────────────────────────────────────────────────
+  - name: "logcollector_disk_fill_95pct"
+    hypothesis: |
+      Steady-state: log_ingestion_lag ≤ 5s, pipeline_log_input_rate > 0.
+      Khi log-collector disk fill 95%, log ingestion sẽ dừng hoặc
+      rất chậm (write fail do no space left on device).
+      Pipeline có thể MISS vì:
+      1. Detector scope thường chỉ cover application metrics
+      2. log-collector là infrastructure component, không phải app
+      3. Đây test meta-monitoring capability — pipeline monitor chính mình
+      NOTE: expected_detection = false — gap thú vị nếu miss.
+    blast_radius:
+      target: "log-collector container"
+      traffic: "synthetic"
+      duration: 120
+    rollback:
+      automatic: true
+      trigger_when: "disk_usage > 98%"
+      method: "docker exec log-collector rm -f /tmp/fill_*; docker restart log-collector"
+    measurement:
+      metrics:
+        - log_ingestion_lag
+        - disk_usage_pct
+        - pipeline_log_input_rate
+        - log_collector_error_count
+      capture_window: "t-5min to t+15min"
+    ground_truth:
+      fault_service: "log-collector"
+      fault_type: "disk_fill"
+      expected_detection: false
+      expected_rca_service: "log-collector"
+
+  # ─────────────────────────────────────────────────────────────
+  # Experiment 8: frontend ↔ api-gateway network partition
+  # ─────────────────────────────────────────────────────────────
+  - name: "frontend_apigateway_partition_30s"
+    hypothesis: |
+      Steady-state: frontend_success_rate ≥ 99%, api_gateway_request_rate > 100 rps.
+      Khi full network partition 30s giữa frontend và api-gateway,
+      tất cả user request sẽ fail → ALL downstream service timeout.
+      Probe external sẽ thấy 100% fail.
+      Pipeline phải detect all-downstream anomaly trong ≤ 15s.
+      RCA phải pick api-gateway hoặc frontend (edge layer).
+    blast_radius:
+      target: "frontend ↔ api-gateway network link"
+      traffic: "synthetic"
+      duration: 30
+    rollback:
+      automatic: true
+      trigger_when: "duration > 30s OR frontend_error_rate > 99% for 10s"
+      method: "docker exec frontend iptables -F; docker exec api-gateway iptables -F"
+    measurement:
+      metrics:
+        - frontend_error_rate
+        - frontend_success_rate
+        - apigateway_request_rate
+        - all_downstream_error_rate
+      capture_window: "t-5min to t+10min"
+    ground_truth:
+      fault_service: "api-gateway"
+      fault_type: "network_partition"
+      expected_detection: true
+      expected_rca_service: "api-gateway"
+
+  # ─────────────────────────────────────────────────────────────
+  # Experiment 9: dns-resolver slow lookup +2s
+  # ─────────────────────────────────────────────────────────────
+  - name: "dns_slow_lookup_2s"
+    hypothesis: |
+      Steady-state: dns_resolution_time ≤ 10ms, all_services_latency_p99 ≤ 500ms.
+      Khi DNS lookup bị delay +2s, mọi service resolve tên service khác
+      qua DNS sẽ chậm → intermittent latency spike ACROSS nhiều service
+      đồng thời (vì DNS là shared dependency).
+      Pipeline phải detect latency anomaly trên multiple services trong ≤ 60s.
+      RCA lý tưởng pick dns-resolver — nhưng correlator có thể bị confused
+      vì nhiều service cùng anomaly → gộp nhầm → RCA sai.
+    blast_radius:
+      target: "dns-resolver container"
+      traffic: "synthetic"
+      duration: 60
+    rollback:
+      automatic: true
+      trigger_when: "dns_resolution_time > 5s for 15s"
+      method: "toxiproxy-cli toxic remove dns-resolver; flush DNS cache all containers"
+    measurement:
+      metrics:
+        - dns_resolution_time
+        - payment_latency_p99
+        - inventory_latency_p99
+        - checkout_latency_p99
+        - apigateway_latency_p99
+      capture_window: "t-5min to t+10min"
+    ground_truth:
+      fault_service: "dns-resolver"
+      fault_type: "dns_latency"
+      expected_detection: true
+      expected_rca_service: "dns-resolver"
+
+  # ─────────────────────────────────────────────────────────────
+  # Experiment 10: checkout-svc HTTP 500 inject — retry storm trap (provided reference)
+  # ─────────────────────────────────────────────────────────────
+  - name: "checkout_http500_retry_storm"
+    hypothesis: |
+      Steady-state: checkout_error_rate ≤ 0.5%, payment_retry_count ≤ 5/min.
+      Khi checkout-svc bị inject HTTP 500 ở 20% request, các caller
+      (api-gateway) sẽ retry → checkout nhận thêm load.
+      Downstream payment-svc và inventory-svc cũng bị retry cascade.
+      TRAP: payment-svc sẽ fire nhiều alert hơn checkout (retry amplification).
+      Pipeline PHẢI detect anomaly, RCA KHÔNG ĐƯỢC pick downstream
+      service ồn nhất (payment) — phải pick checkout-svc là source.
+    blast_radius:
+      target: "checkout-svc container"
+      traffic: "synthetic"
+      duration: 60
+    rollback:
+      automatic: true
+      trigger_when: "checkout_error_rate > 50% for 15s"
+      method: "toxiproxy-cli toxic remove checkout-svc; remove HTTP fault proxy"
+    measurement:
+      metrics:
+        - checkout_error_rate
+        - checkout_5xx_count
+        - payment_retry_count
+        - payment_error_rate
+        - inventory_error_rate
+        - apigateway_error_rate
+      capture_window: "t-5min to t+10min"
+    ground_truth:
+      fault_service: "checkout-svc"
+      fault_type: "cascade_retry"
+      expected_detection: true
+      expected_rca_service: "checkout-svc"
