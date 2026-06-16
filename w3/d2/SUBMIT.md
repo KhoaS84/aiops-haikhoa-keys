@@ -1,4 +1,4 @@
-# W3-D2 Submission — haikhoa
+# W3-D2 Submission — khoa
 
 ## 3 thứ em học được về AIOps pipeline của mình
 
@@ -39,5 +39,5 @@ Ratio cost khoảng 1:100. Vậy chấp nhận thêm 2-3 false alarm/ngày để
 - rca_correct: 6/9
 - mttd_p50:    28s
 - false_alarms: 0
-- verdict:     PASS ✅  (detected ≥ 7 ✓, RCA ≥ 5/9 ✓, FA ≤ 1 ✓)
+- verdict:     PASS  (detected >= 7, RCA >= 5/9, FA <= 1)
 ```

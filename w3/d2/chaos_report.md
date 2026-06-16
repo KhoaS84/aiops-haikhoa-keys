@@ -1,4 +1,4 @@
-# Chaos Engineering Report — haikhoa
+# Chaos Engineering Report — khoa
 
 ## 1. Setup
 
@@ -51,7 +51,7 @@ Gaps identified:
   - checkout_http500_retry_storm: RCA wrong (picked 'payment-svc') → RCA logic issue
 
 ============================================================
-Verdict: PASS ✅
+Verdict: PASS
   Detected 9/10 (need ≥7), RCA 6/9 (need ≥5), FA 0 (need ≤1)
 ============================================================
 ```
@@ -63,61 +63,61 @@ Verdict: PASS ✅
 ### Experiment 1: payment_latency_500ms
 
 - **Hypothesis:** payment-svc latency +500ms → pipeline detect trong ≤ 60s, RCA pick payment-svc.
-- **Observed:** Detected ✅, MTTD = 28s, RCA = payment-svc ✅
+- **Observed:** Detected (Y), MTTD = 28s, RCA = payment-svc (correct)
 - **Match expected:** Yes. Latency anomaly cực kỳ rõ ràng — baseline p99 là 120ms, inject thêm 500ms → p99 nhảy lên ~620ms, vượt xa 3σ threshold. Pipeline detect nhanh (28s) vì signal-to-noise ratio cao. RCA correct vì payment-svc là service DUY NHẤT có latency drift lớn, downstream chỉ bị ảnh hưởng nhẹ do timeout config. Probe external ghi nhận pass-rate giảm còn 94% trong injection window — user impact rõ.
 
 ### Experiment 2: payment_packet_loss_30pct
 
 - **Hypothesis:** payment-svc packet loss 30% → detect error_rate anomaly ≤ 60s, RCA pick payment-svc.
-- **Observed:** Detected ✅, MTTD = 36s, RCA = payment-svc ✅
+- **Observed:** Detected (Y), MTTD = 36s, RCA = payment-svc (correct)
 - **Match expected:** Yes. Packet loss 30% gây TCP retransmission → error_rate spike từ 0.1% lên ~28%. Pipeline detect chậm hơn experiment 1 (36s vs 28s) vì error_rate cần tích lũy vài cycle mới vượt threshold — consistent với Z-score anomaly trên sliding window. RCA correct vì payment-svc có error_rate drift rõ ràng, retry count tăng 15× so với baseline. checkout-svc retry giữ success rate ở 91%.
 
 ### Experiment 3: inventory_pod_kill_60s
 
 - **Hypothesis:** inventory-svc kill → detect availability drop ≤ 30s, RCA pick inventory-svc.
-- **Observed:** Detected ✅, MTTD = 12s, RCA = inventory-svc ✅
+- **Observed:** Detected (Y), MTTD = 12s, RCA = inventory-svc (correct)
 - **Match expected:** Yes. Pod kill tạo signal binary rõ ràng (availability 100% → 0% → 100% khi restart). Pipeline detect rất nhanh (12s) vì availability drop là signal mạnh nhất. RCA correct nhờ topology: inventory-svc là service duy nhất chết, downstream checkout-svc chỉ thấy intermittent error (không phải full outage nhờ circuit breaker). Container restart trong ~8s, nhưng 2 kill cycles (mỗi 60s) đủ chứng minh pattern.
 
 ### Experiment 4: apigateway_cpu_stress_90pct
 
 - **Hypothesis:** api-gateway CPU 90% → detect latency cascade ≤ 45s, RCA pick api-gateway.
-- **Observed:** Detected ✅, MTTD = 42s, RCA = payment-svc ❌ (expected: api-gateway)
+- **Observed:** Detected (Y), MTTD = 42s, RCA = payment-svc (WRONG, expected: api-gateway)
 - **Match expected:** Detection đúng, nhưng RCA sai. Pipeline detect latency anomaly trên 5 service (api-gateway, payment, inventory, checkout, notification) — đúng pattern cascade. Tuy nhiên RCA pick payment-svc thay vì api-gateway. **Root cause analysis:** RCA dùng alert severity ranking — payment-svc có p99 latency tăng nhiều nhất (200ms → 2800ms) vì nó có complex processing, trong khi api-gateway chỉ proxy (120ms → 1200ms). RCA pick "loudest" service thay vì "earliest" hoặc "topologically upstream". Đây là weakness §7.3 — cần topology-aware RCA.
 
 ### Experiment 5: paymentdb_memory_fill_95pct
 
 - **Hypothesis:** payment-db memory 95% → detect connection error ≤ 45s, RCA pick payment-db.
-- **Observed:** Detected ✅, MTTD = 39s, RCA = payment-db ✅
+- **Observed:** Detected (Y), MTTD = 39s, RCA = payment-db (correct)
 - **Match expected:** Yes. Memory pressure gây OOM kill trên database process → connection pool exhaustion → payment-svc nhận connection refused. Pipeline detect qua payment_error_rate spike (0.1% → 65%). RCA correct vì payment-db connection_pool_usage metric nhảy từ 40% lên 100% trước khi payment-svc error_rate tăng — temporal ordering rõ ràng. Probe external ghi nhận pass-rate drop còn 82% — significant user impact.
 
 ### Experiment 6: authsvc_clock_skew_60s
 
 - **Hypothesis:** auth-svc clock +60s → detect auth error spike ≤ 30s, RCA pick auth-svc.
-- **Observed:** Detected ✅, MTTD = 22s, RCA = auth-svc ✅
+- **Observed:** Detected (Y), MTTD = 22s, RCA = auth-svc (correct)
 - **Match expected:** Yes. Clock skew +60s gây JWT validation failure — token issued at real time appears "from the future" khi auth-svc clock nhanh 60s, HOẶC token appears expired sớm hơn 60s. auth_error_rate spike từ 0.05% lên 89%. Pipeline detect nhanh (22s) vì auth error tạo cascade 401 errors trên tất cả authenticated endpoints. RCA correct vì auth-svc là duy nhất có error pattern — downstream services trả 401 pass-through, không tự generate error. api_401_rate tăng proportional.
 
 ### Experiment 7: logcollector_disk_fill_95pct
 
 - **Hypothesis:** log-collector disk 95% → detect log lag (có thể miss vì no meta-monitoring).
-- **Observed:** NOT Detected ❌, MTTD = —, RCA = —
+- **Observed:** NOT Detected (MISS), MTTD = -, RCA = -
 - **Match expected:** Yes — đã dự đoán miss. Pipeline KHÔNG có detector cho log-collector disk usage hoặc log ingestion lag. Đây là classic monitoring dependency loop (§7.5): pipeline phụ thuộc log-collector để ingest logs, nhưng không monitor health của log-collector. Khi disk full, log-collector stop writing → pipeline mất log input → nhưng pipeline không alert vì nó không biết input đã dừng. **Observation:** probe external vẫn pass (user-facing services không bị ảnh hưởng trực tiếp) nhưng pipeline bị "blind" — nếu fault khác xảy ra đồng thời, sẽ không có log evidence cho RCA.
 
 ### Experiment 8: frontend_apigateway_partition_30s
 
 - **Hypothesis:** Full partition 30s → detect all-downstream anomaly ≤ 15s, RCA pick edge.
-- **Observed:** Detected ✅, MTTD = 8s, RCA = api-gateway ✅
+- **Observed:** Detected (Y), MTTD = 8s, RCA = api-gateway (correct)
 - **Match expected:** Yes. Network partition binary clear — 100% request fail, 0 request đi qua. Pipeline detect cực nhanh (8s) vì signal rõ nhất trong 10 experiment: tất cả metrics đồng loạt anomaly. RCA correct vì api-gateway là chokepoint — khi partition được lift, tất cả service recover đồng thời → temporal pattern chỉ rõ edge layer. Probe external ghi nhận 100% fail trong 30s window (6 consecutive fail entries), recover trong 15s sau rollback.
 
 ### Experiment 9: dns_slow_lookup_2s
 
 - **Hypothesis:** DNS +2s delay → detect latency across services ≤ 60s, RCA pick dns-resolver.
-- **Observed:** Detected ✅, MTTD = 53s, RCA = payment-svc ❌ (expected: dns-resolver)
+- **Observed:** Detected (Y), MTTD = 53s, RCA = payment-svc (WRONG, expected: dns-resolver)
 - **Match expected:** Detection chậm nhưng thành công. RCA sai. DNS delay +2s gây intermittent latency spike trên **nhiều service đồng thời** (payment +2.1s, inventory +2.0s, checkout +2.3s, api-gateway +2.1s). Correlator gộp tất cả thành 1 cluster (đúng — chung root cause). Nhưng RCA pick payment-svc (highest absolute latency increase) thay vì dns-resolver. **Root cause:** Pipeline không có dns-resolver trong dependency graph (DNS là implicit dependency). RCA chỉ rank application services → pick payment vì nó ồn nhất. Đây là weakness §7.2 — correlator đúng nhưng RCA thiếu topology awareness cho infrastructure dependencies.
 
 ### Experiment 10: checkout_http500_retry_storm
 
 - **Hypothesis:** checkout-svc 500 inject → retry storm → RCA phải pick checkout, KHÔNG phải downstream.
-- **Observed:** Detected ✅, MTTD = 19s, RCA = payment-svc ❌ (expected: checkout-svc)
+- **Observed:** Detected (Y), MTTD = 19s, RCA = payment-svc (WRONG, expected: checkout-svc)
 - **Match expected:** Detection đúng, RCA sai — đúng như dự đoán "bẫy". Checkout-svc trả 500 ở 20% request → api-gateway retry → checkout nhận 1.5× load → downstream payment-svc nhận retry cascade 3× → payment fire 12 alerts (nhiều nhất). Naive RCA rank by alert count → pick payment-svc. Đây chính xác là Retry Storm pattern (§7.3). **Evidence:** checkout-svc error_rate tăng TRƯỚC payment-svc (T+0s vs T+3s) — temporal ordering chứng minh checkout là root. Nhưng RCA không dùng temporal-causal analysis. Cần Granger causality hoặc cross-correlation lag.
 
 ---
