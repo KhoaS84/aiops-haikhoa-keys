@@ -1,0 +1,82 @@
+[
+  {
+    "alert_id": "alert-001",
+    "timestamp": "2026-06-17T05:06:00+00:00",
+    "service": "billing-1",
+    "metric": "availability",
+    "severity": "warning",
+    "value": 0.0,
+    "threshold": 0.999,
+    "message": "billing-1 availability dropped to 0% — service stopped"
+  },
+  {
+    "alert_id": "alert-002",
+    "timestamp": "2026-06-17T05:06:02+00:00",
+    "service": "index-1",
+    "metric": "availability",
+    "severity": "critical",
+    "value": 0.0,
+    "threshold": 0.999,
+    "message": "index-1 availability dropped to 0% — object metadata unavailable"
+  },
+  {
+    "alert_id": "alert-003",
+    "timestamp": "2026-06-17T05:06:04+00:00",
+    "service": "index-2",
+    "metric": "availability",
+    "severity": "critical",
+    "value": 0.0,
+    "threshold": 0.999,
+    "message": "index-2 availability dropped to 0% — full index subsystem down"
+  },
+  {
+    "alert_id": "alert-004",
+    "timestamp": "2026-06-17T05:06:06+00:00",
+    "service": "placement-1",
+    "metric": "availability",
+    "severity": "critical",
+    "value": 0.0,
+    "threshold": 0.999,
+    "message": "placement-1 availability dropped to 0% — new object routing failed"
+  },
+  {
+    "alert_id": "alert-005",
+    "timestamp": "2026-06-17T05:06:08+00:00",
+    "service": "placement-2",
+    "metric": "availability",
+    "severity": "critical",
+    "value": 0.0,
+    "threshold": 0.999,
+    "message": "placement-2 availability dropped to 0% — full placement subsystem down"
+  },
+  {
+    "alert_id": "alert-006",
+    "timestamp": "2026-06-17T05:06:14+00:00",
+    "service": "s3-api",
+    "metric": "error_rate",
+    "severity": "critical",
+    "value": 1.0,
+    "threshold": 0.001,
+    "message": "S3 API error rate 100% — GET/PUT/LIST all returning 503"
+  },
+  {
+    "alert_id": "alert-007",
+    "timestamp": "2026-06-17T05:06:44+00:00",
+    "service": "lambda",
+    "metric": "error_rate",
+    "severity": "critical",
+    "value": 0.45,
+    "threshold": 0.01,
+    "message": "Lambda invoke error rate 45% — code storage in S3 unavailable"
+  },
+  {
+    "alert_id": "alert-008",
+    "timestamp": "2026-06-17T05:06:50+00:00",
+    "service": "cloudwatch",
+    "metric": "ingestion_lag_seconds",
+    "severity": "warning",
+    "value": 300,
+    "threshold": 30,
+    "message": "CloudWatch metric ingestion lag 300s — S3 backend unavailable"
+  }
+]

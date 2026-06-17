@@ -1,0 +1,48 @@
+{
+  "rca_id": "rca-001",
+  "timestamp": "2026-06-17T05:06:30+00:00",
+  "window_start": "2026-06-17T05:05:54+00:00",
+  "window_end": "2026-06-17T05:15:54+00:00",
+  "method": "count_based_ranking",
+  "root_cause_service": "index-1",
+  "confidence": 0.72,
+  "ranking": [
+    {
+      "rank": 1,
+      "service": "index-1",
+      "score": 0.95,
+      "reason": "Highest alert count (2 critical alerts), earliest availability drop among data-plane services"
+    },
+    {
+      "rank": 2,
+      "service": "placement-1",
+      "score": 0.88,
+      "reason": "2 critical alerts, availability dropped 2s after index"
+    },
+    {
+      "rank": 3,
+      "service": "s3-api",
+      "score": 0.75,
+      "reason": "1 critical alert, error_rate 100% — but downstream symptom, not root cause"
+    },
+    {
+      "rank": 4,
+      "service": "billing-1",
+      "score": 0.40,
+      "reason": "1 warning alert, availability 0% but lower severity classification"
+    }
+  ],
+  "gaps_identified": [
+    {
+      "gap": "RCA cannot identify operator action as root cause",
+      "detail": "Pipeline detects service-level anomalies but has no signal for operator commands. The actual root cause (over-broad operator command) is invisible to metric-based detection. RCA picks index-1 as root because it has the most critical alerts, but index-1 is a VICTIM, not the cause."
+    },
+    {
+      "gap": "No blast-radius awareness",
+      "detail": "Pipeline sees 5 services drop simultaneously but cannot distinguish between 'operator stopped all' vs 'cascading failure from one service'. Simultaneous-drop pattern should trigger a different analysis path (operator action / infrastructure event) rather than service-level RCA."
+    }
+  ],
+  "detection_latency_seconds": 26,
+  "detection_target_seconds": 30,
+  "detection_met_target": true
+}

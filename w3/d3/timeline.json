@@ -1,0 +1,128 @@
+[
+  {
+    "seq": 1,
+    "timestamp": "2026-06-17T05:05:44+00:00",
+    "event": "PRE_CHECK",
+    "source": "operator",
+    "detail": "All 5 services confirmed running: billing-1, index-1, index-2, placement-1, placement-2",
+    "subsystem": "all",
+    "severity": "info"
+  },
+  {
+    "seq": 2,
+    "timestamp": "2026-06-17T05:05:54+00:00",
+    "event": "OPERATOR_COMMAND",
+    "source": "operator",
+    "detail": "Operator intended: 'docker compose stop billing-1'. Actual: 'docker compose stop' (no target specified)",
+    "subsystem": "billing",
+    "severity": "critical"
+  },
+  {
+    "seq": 3,
+    "timestamp": "2026-06-17T05:05:56+00:00",
+    "event": "SERVICE_DOWN",
+    "source": "docker",
+    "detail": "Container s3-billing-1 stopped (INTENDED target)",
+    "subsystem": "billing",
+    "severity": "warning"
+  },
+  {
+    "seq": 4,
+    "timestamp": "2026-06-17T05:05:58+00:00",
+    "event": "SERVICE_DOWN",
+    "source": "docker",
+    "detail": "Container s3-index-1 stopped (UNINTENDED — object metadata unavailable)",
+    "subsystem": "index",
+    "severity": "critical"
+  },
+  {
+    "seq": 5,
+    "timestamp": "2026-06-17T05:06:00+00:00",
+    "event": "SERVICE_DOWN",
+    "source": "docker",
+    "detail": "Container s3-index-2 stopped (UNINTENDED — full index subsystem down)",
+    "subsystem": "index",
+    "severity": "critical"
+  },
+  {
+    "seq": 6,
+    "timestamp": "2026-06-17T05:06:02+00:00",
+    "event": "SERVICE_DOWN",
+    "source": "docker",
+    "detail": "Container s3-placement-1 stopped (UNINTENDED — cannot route new object writes)",
+    "subsystem": "placement",
+    "severity": "critical"
+  },
+  {
+    "seq": 7,
+    "timestamp": "2026-06-17T05:06:04+00:00",
+    "event": "SERVICE_DOWN",
+    "source": "docker",
+    "detail": "Container s3-placement-2 stopped (UNINTENDED — full placement subsystem down)",
+    "subsystem": "placement",
+    "severity": "critical"
+  },
+  {
+    "seq": 8,
+    "timestamp": "2026-06-17T05:06:14+00:00",
+    "event": "API_ERRORS_SPIKE",
+    "source": "monitoring",
+    "detail": "S3 API error rate jumps to 100%. GET, PUT, LIST all returning 503. Customer-visible impact begins.",
+    "subsystem": "api",
+    "severity": "critical"
+  },
+  {
+    "seq": 9,
+    "timestamp": "2026-06-17T05:06:44+00:00",
+    "event": "CASCADE_DETECTED",
+    "source": "monitoring",
+    "detail": "Dependent services reporting failures: Lambda invoke errors, EC2 console errors, CloudWatch metric gaps",
+    "subsystem": "downstream",
+    "severity": "critical"
+  },
+  {
+    "seq": 10,
+    "timestamp": "2026-06-17T05:07:44+00:00",
+    "event": "ROOT_CAUSE_IDENTIFIED",
+    "source": "operator",
+    "detail": "Team identifies over-broad command removed servers from billing, index, AND placement subsystems",
+    "subsystem": "all",
+    "severity": "warning"
+  },
+  {
+    "seq": 11,
+    "timestamp": "2026-06-17T05:08:44+00:00",
+    "event": "MITIGATION_START",
+    "source": "operator",
+    "detail": "Begin restarting index and placement subsystems. Index requires full restart due to safety checks.",
+    "subsystem": "index",
+    "severity": "warning"
+  },
+  {
+    "seq": 12,
+    "timestamp": "2026-06-17T05:10:44+00:00",
+    "event": "PARTIAL_RECOVERY",
+    "source": "docker",
+    "detail": "placement-1 and placement-2 restarted and healthy. New object writes resuming.",
+    "subsystem": "placement",
+    "severity": "info"
+  },
+  {
+    "seq": 13,
+    "timestamp": "2026-06-17T05:12:44+00:00",
+    "event": "PARTIAL_RECOVERY",
+    "source": "docker",
+    "detail": "index-1 and index-2 restarted. Index subsystem rebuilding metadata cache — slow recovery.",
+    "subsystem": "index",
+    "severity": "info"
+  },
+  {
+    "seq": 14,
+    "timestamp": "2026-06-17T05:15:44+00:00",
+    "event": "FULL_RECOVERY",
+    "source": "monitoring",
+    "detail": "All 5 services healthy. S3 API error rate back to 0%. Full recovery confirmed.",
+    "subsystem": "all",
+    "severity": "info"
+  }
+]

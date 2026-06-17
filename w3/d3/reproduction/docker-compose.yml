@@ -1,0 +1,105 @@
+# AWS S3 2017-02-28 Outage Reproduction
+# Simulates: operator typo removes too many servers across subsystems
+#
+# Original incident: An authorized S3 team member executed a command to remove
+# a small number of servers for the S3 billing process (subsystem A).
+# Unfortunately, one of the inputs was entered incorrectly, causing a larger
+# set of servers to be removed than intended — including servers for the
+# S3 index subsystem (subsystem B) and the S3 placement subsystem (subsystem C).
+#
+# This reproduction uses 5 containers representing 3 subsystems to demonstrate
+# how one over-broad command can take down unrelated critical services.
+
+services:
+  # === Subsystem A: Billing (intended target) ===
+  billing-1:
+    image: alpine:3.20
+    container_name: s3-billing-1
+    command: >
+      sh -c "echo 'Billing service running...' &&
+             while true; do
+               echo \"[billing-1] Processing billing record at $$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
+               sleep 5
+             done"
+    healthcheck:
+      test: ["CMD", "echo", "ok"]
+      interval: 5s
+      timeout: 2s
+      retries: 3
+    labels:
+      subsystem: billing
+      role: billing-worker
+
+  # === Subsystem B: Index (NOT intended target — stores object metadata) ===
+  index-1:
+    image: alpine:3.20
+    container_name: s3-index-1
+    command: >
+      sh -c "echo 'Index service running...' &&
+             while true; do
+               echo \"[index-1] Serving object metadata at $$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
+               sleep 3
+             done"
+    healthcheck:
+      test: ["CMD", "echo", "ok"]
+      interval: 5s
+      timeout: 2s
+      retries: 3
+    labels:
+      subsystem: index
+      role: metadata-server
+
+  index-2:
+    image: alpine:3.20
+    container_name: s3-index-2
+    command: >
+      sh -c "echo 'Index service running...' &&
+             while true; do
+               echo \"[index-2] Serving object metadata at $$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
+               sleep 3
+             done"
+    healthcheck:
+      test: ["CMD", "echo", "ok"]
+      interval: 5s
+      timeout: 2s
+      retries: 3
+    labels:
+      subsystem: index
+      role: metadata-server
+
+  # === Subsystem C: Placement (NOT intended target — decides where objects live) ===
+  placement-1:
+    image: alpine:3.20
+    container_name: s3-placement-1
+    command: >
+      sh -c "echo 'Placement service running...' &&
+             while true; do
+               echo \"[placement-1] Routing object placement at $$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
+               sleep 4
+             done"
+    healthcheck:
+      test: ["CMD", "echo", "ok"]
+      interval: 5s
+      timeout: 2s
+      retries: 3
+    labels:
+      subsystem: placement
+      role: placement-router
+
+  placement-2:
+    image: alpine:3.20
+    container_name: s3-placement-2
+    command: >
+      sh -c "echo 'Placement service running...' &&
+             while true; do
+               echo \"[placement-2] Routing object placement at $$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
+               sleep 4
+             done"
+    healthcheck:
+      test: ["CMD", "echo", "ok"]
+      interval: 5s
+      timeout: 2s
+      retries: 3
+    labels:
+      subsystem: placement
+      role: placement-router
