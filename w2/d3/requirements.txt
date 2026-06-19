@@ -1,0 +1,7 @@
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pydantic>=2.5
+networkx>=3.2
+pandas>=2.0
+prometheus-client>=0.19
+pytest>=7.4

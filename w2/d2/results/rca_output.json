@@ -1,0 +1,79 @@
+{
+  "clusters_analyzed": 3,
+  "results": [
+    {
+      "cluster_id": "c-000-000",
+      "graph_top3": [
+        [
+          "payment-svc",
+          1.0
+        ],
+        [
+          "checkout-svc",
+          0.9391
+        ],
+        [
+          "edge-lb",
+          0.8976
+        ]
+      ],
+      "root_cause": "payment-svc",
+      "class": "connection_pool_exhaustion",
+      "confidence": 1.0,
+      "actions": [
+        "Rollback to v3.1. Scale pool 50 → 100 cushion. Add pool monitor alert > 80%."
+      ],
+      "reasoning": "payment-svc is ranked highest by combined graph + temporal score. The score uses reverse PageRank on the service dependency subgraph and alert start time.",
+      "similar_incidents": [
+        "INC-2025-11-08",
+        "INC-2026-03-20",
+        "INC-2025-08-17"
+      ],
+      "method": "graph+retrieval"
+    },
+    {
+      "cluster_id": "c-000-001",
+      "graph_top3": [
+        [
+          "notification-svc",
+          1.0
+        ]
+      ],
+      "root_cause": "notification-svc",
+      "class": "other",
+      "confidence": 1.0,
+      "actions": [
+        "Failover to backup provider. Multi-provider routing."
+      ],
+      "reasoning": "notification-svc is ranked highest by combined graph + temporal score. The score uses reverse PageRank on the service dependency subgraph and alert start time.",
+      "similar_incidents": [
+        "INC-2026-02-08",
+        "INC-2026-05-18",
+        "INC-2025-10-03"
+      ],
+      "method": "graph+retrieval"
+    },
+    {
+      "cluster_id": "c-000-002",
+      "graph_top3": [
+        [
+          "recommender-svc",
+          1.0
+        ]
+      ],
+      "root_cause": "recommender-svc",
+      "class": "memory_leak",
+      "confidence": 1.0,
+      "actions": [
+        "Patch leak; rollback v3.0 trong khi chờ. Add gc.collect() trong handler."
+      ],
+      "reasoning": "recommender-svc is ranked highest by combined graph + temporal score. The score uses reverse PageRank on the service dependency subgraph and alert start time.",
+      "similar_incidents": [
+        "INC-2025-08-02",
+        "INC-2025-10-28",
+        "INC-2026-03-07"
+      ],
+      "method": "graph+retrieval"
+    }
+  ]
+}

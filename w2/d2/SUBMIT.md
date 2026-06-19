@@ -1,0 +1,5 @@
+Confidence của top-1 trong cluster lớn nhất là giá trị confidence được lấy từ graph_top3[0][1]. Nếu phải set threshold để auto-rollback, mình chọn 0.85. Lý do là RCA tự động chỉ nên rollback khi tín hiệu graph và timestamp cùng mạnh. Nếu confidence thấp hơn, hệ thống chỉ nên tạo recommendation để SRE kiểm tra.
+
+Mình chọn variant A rule-based là kNN retrieval. Hệ thống tìm các incident lịch sử có service overlap, root cause overlap và severity giống cluster hiện tại. Cách này nhanh, không cần API key và dễ kiểm tra. So với LLM, retrieval-only  ổn định hơn và không bị hallucination nhưng ít linh hoạt.
+
+Pipeline mình gần với Dynatrace Davis nhất vì dựa nhiều vào service graph, dependency direction và temporal signal để tìm root cause. Với domain GeekShop là e-commerce, alert volume cao và service map tương đối ổn định, hướng này hợp lý. Nếu service graph thiếu hoặc hệ thống event-driven phức tạp hơn, nên bổ sung causal inference hoặc metric correlation.

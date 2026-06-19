@@ -1,0 +1,5 @@
+Cluster chính có root cause được chọn là `payment-svc` vì service này có điểm graph và temporal cao nhất. Trong service graph, `payment-svc` nằm sâu hơn so với `checkout-svc` và `edge-lb`, nghĩa là các service khác phụ thuộc vào nó. Ngoài ra, alert của `payment-svc` xuất hiện sớm cluster nên timestamp_score cũng cao. Vì vậy hệ thống xếp `payment-svc` là culprit, còn các service trên là victim.
+
+Confidence của kết quả ở mức khá, nhưng mình chưa muốn deploy auto-remediation hoàn toàn tự động nếu confidence chưa vượt ngưỡng 0.85. RCA tự động có thể sai nếu service graph thiếu edge hoặc timestamp bị delay. Một case mình chưa chắc là khi top-1 và top-2 có điểm gần nhau, vì khi đó lỗi có thể đến từ shared infrastructure hoặc dependency ngoài graph.
+
+Retrieval-only đã đủ lấy class và actions từ incident lịch sử gần nhất, dễ debug.
