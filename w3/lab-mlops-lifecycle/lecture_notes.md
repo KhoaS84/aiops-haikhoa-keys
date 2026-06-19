@@ -37,6 +37,43 @@ graph TD
     F -->|Precision < 0.65| H["🔄 AUTO-ROLLBACK<br/>Khôi phục v1 & Archive v2"]:::danger
 ```
 
+### Chi tiết các bước vận hành trong chu trình:
+
+1. **🔍 1. MONITOR (Quét Drift Kết Hợp)**
+   * **Mô tả**: Định kỳ thu thập dữ liệu giao dịch thực tế (`current_df`) để đối chiếu với tập dữ liệu huấn luyện chuẩn ban đầu (`reference_df`).
+   * **Kỹ thuật**: `drift_detector.py` thực hiện hai phép đo song song:
+     * *Data Drift*: Dùng khoảng cách Wasserstein (Wasserstein Distance) của Evidently AI để kiểm tra sự lệch phân phối của 3 đặc trưng đầu vào (`latency_p99`, `error_rate`, `rps`).
+     * *Performance Drift*: Đánh giá trực tiếp hiệu năng của mô hình hiện tại (v1) trên tập dữ liệu mới có nhãn.
+   * **Ngưỡng vi phạm**: Nếu `drift_score > 0.15` (lệch phân phối) hoặc `precision < 0.70` (suy giảm hiệu năng), cảnh báo được kích hoạt để chuyển sang bước tiếp theo.
+
+2. **🧠 2. DECIDE & RETRAIN (Tái huấn luyện mô hình v2)**
+   * **Mô tả**: Tự động gom dữ liệu để xây dựng lại mô hình phù hợp với thực tế vận hành mới.
+   * **Kỹ thuật**: Sử dụng chiến lược *Sliding Window* bằng cách gộp dữ liệu lịch sử (`baseline.csv` - 4320 dòng) và dữ liệu lệch mới (`drifted.csv` - 1008 dòng) thành tập huấn luyện mới 5328 dòng.
+   * **Tránh lỗi chuẩn hóa**: Đóng gói `StandardScaler` và `IsolationForest` vào trong một Scikit-Learn `Pipeline` để đảm bảo đồng bộ hóa tiền xử lý. Lưu vết toàn bộ tham số, metrics, artifact mô hình và scaler lên MLflow Tracking Server.
+
+3. **🧪 3. SANITY CHECK (Kiểm thử Holdout)**
+   * **Mô tả**: Chạy kiểm thử độc lập trước khi đẩy mô hình lên registry nhằm ngăn ngừa hiện tượng thoái hóa hiệu năng (model regression).
+   * **Kỹ thuật**: Đánh giá pipeline v2 trực tiếp trên tập dữ liệu kiểm chứng độc lập `data/holdout.csv` (lưu giữ các pattern cũ).
+   * **Điều kiện vượt qua**: Độ chính xác (Precision) của v2 trên tập holdout bắt buộc phải lớn hơn hoặc bằng v1.
+
+4. **⚡ 4. DEPLOY STAGING (Đăng ký mô hình thử nghiệm)**
+   * **Mô tả**: Đăng ký phiên bản mới vào MLflow Model Registry.
+   * **Kỹ thuật**: Gán alias `@staging` cho phiên bản v2 vừa tạo. Việc này giúp tách biệt phiên bản thử nghiệm với phiên bản phục vụ khách hàng thực tế (`@production`), cho phép kiểm tra cô lập mô hình mới mà không gây ảnh hưởng đến hệ thống đang chạy.
+
+5. **📈 5. SWAP PRODUCTION & RELOAD (Cắt chuyển không downtime)**
+   * **Mô tả**: Đưa mô hình v2 vào hoạt động chính thức và cập nhật API server.
+   * **Kỹ thuật**: ML Engineer thực hiện duyệt cổng thủ công thông qua console. Khi được duyệt:
+     * MLflow Registry sẽ thực hiện đổi thẻ alias `@production` từ v1 sang v2 một cách nguyên tử (atomic).
+     * Script gửi request `POST /reload` đến FastAPI serve API. API server ngay lập tức tải lại pipeline v2 từ registry vào RAM, chuyển đổi mô hình phục vụ thực tế trong thời gian thực với **0 downtime**.
+
+6. **🔄 6. POST-DEPLOY MONITOR & AUTO-ROLLBACK (Cầu chì tự động)**
+   * **Mô tả**: Giám sát hiệu năng của mô hình v2 sau khi được deploy lên production trong 24 chu kỳ hoạt động.
+   * **Kỹ thuật**: Chạy đánh giá độ chính xác của v2 trên tập dữ liệu kiểm thử thực tế `data/post_deploy_eval.csv`.
+   * **Cơ chế Rollback**: Nếu phát hiện lỗi nghiêm trọng (mô phỏng bằng lỗi tiền xử lý/bypass scaler làm precision tụt xuống dưới `0.65` tại Cycle 01):
+     * Cầu chì tự động kích hoạt: đổi thẻ alias của v2 thành `@archived`, khôi phục alias `@production` về v1.
+     * Gọi lệnh `/reload` để API server lập tức chuyển về phục vụ bằng v1 ổn định.
+     * Ghi nhận sự kiện `auto_rollback_v2_to_v1` vào audit log `outputs/audit_log.jsonl` để báo cáo on-call.
+
 ---
 
 ## 3. Chốt Chặn An Toàn (Safety Gates)
